@@ -1,4 +1,6 @@
+import Link from 'next/link';
 import { footer, site } from '@/lib/content';
+import { legalLinks } from '@/lib/legal';
 import CallCta from './CallCta';
 import Wordmark from './Wordmark';
 
@@ -85,14 +87,16 @@ export default function Footer() {
         {/* ---------------- Bottom bar ---------------- */}
         <div className="mt-9 flex flex-col gap-5 border-t border-white/10 pt-7 lg:flex-row lg:items-center lg:justify-between">
           <ul className="flex flex-wrap gap-x-6 gap-y-2.5">
-            {footer.policyLinks.map((link) => (
+            {/* Derived from lib/legal.ts, so adding a policy document lists
+                it here without a second edit. */}
+            {legalLinks.map((link) => (
               <li key={link.label}>
-                <a
+                <Link
                   href={link.href}
                   className="inline-block py-1.5 text-[0.75rem] text-arvig-200 transition-colors hover:text-lime-brand"
                 >
                   {link.label}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>

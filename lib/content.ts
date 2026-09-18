@@ -104,6 +104,14 @@ export const site = {
   phoneDisplay: '(888) 555-0142',
   phoneHref: 'tel:+18885550142',
 
+  /**
+   * PLACEHOLDERS — the legal pages cite these. Fill all four before launch;
+   * a policy that names no legal entity or contact route is unenforceable.
+   */
+  legalEntity: '[Legal Entity Name, LLC]',
+  legalAddress: '[Street Address, City, State ZIP]',
+  legalEmail: '[compliance@example.com]',
+
   /** Persistent, non-dismissable top bar. */
   disclosure: 'Independent Authorized Retailer of Arvig.',
 
@@ -775,12 +783,9 @@ export const footer = {
     site.disclosureLong,
     'Speeds quoted are maximum wired speeds. Actual throughput depends on your equipment, wiring and in-home network. Taxes, surcharges and fees are additional. Arvig Mobile plans require active Arvig internet service.',
   ],
-  policyLinks: [
-    { label: 'Privacy Policy', href: '#legal' },
-    { label: 'Terms & Conditions', href: '#legal' },
-    { label: 'Disclaimer', href: '#legal' },
-    { label: 'Accessibility', href: '#legal' },
-    { label: 'Do Not Sell My Info', href: '#legal' },
-  ],
-  copyright: `© ${new Date().getFullYear()} ${site.retailerName}. All rights reserved.`,
+  /**
+   * Populated from lib/legal.ts by the Footer, so a new policy document
+   * appears here automatically rather than needing to be listed twice.
+   */
+  copyright: `© ${site.retailerName}. All rights reserved.`,
 };

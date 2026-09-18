@@ -1057,3 +1057,89 @@ public by design.
 Pushed as `332cdc4`; local and `origin/main` in sync.
 
 ---
+
+## [0024] Eight policy pages; copyright year removed
+
+### Reference check
+
+bestfiberinternet.us carries five policy pages (Privacy, Terms, Disclaimer,
+TCPA Consent, Cookie Policy); kineticfiber.us carries three. Neither has all
+eight, so their structure and register were used as the model and the eight
+documents were written for this site rather than adapted from theirs.
+
+The TCPA and Privacy pages on the reference site set the pattern followed
+here: short titled sections, plain register, an explicit statement of what the
+operator does *not* do, and a contact block at the end.
+
+### Architecture
+
+Same approach as `lib/content.ts`. The documents are data in **`lib/legal.ts`**
+and **one route renders all eight**: `app/legal/[slug]/page.tsx` with
+`generateStaticParams`, so each prerenders as static HTML. `dynamicParams =
+false` makes any other slug a 404 instead of an attempted render.
+
+Adding a ninth policy is a data edit — no new file, no layout change, and it
+appears in the footer and the sidebar automatically because both derive from
+`legalLinks`.
+
+| Route | Document |
+| --- | --- |
+| `/legal/privacy` | Privacy & Data Protection |
+| `/legal/disclaimer` | Disclaimer |
+| `/legal/cookies` | Cookies Policy |
+| `/legal/tcpa` | TCPA Policy |
+| `/legal/trademarks` | Trademarks |
+| `/legal/marketing` | Marketing Policy |
+| `/legal/service-fulfillment` | Service Fulfillment |
+| `/legal/pci-dss` | PCI DSS |
+
+`footer.policyLinks` was deleted from `lib/content.ts`; the Footer now maps
+`legalLinks` so the list cannot drift from the documents that exist.
+
+### Written to match how the site actually behaves
+
+The documents assert only what is true of this build, which keeps them
+defensible:
+
+- **PCI DSS** — the site has no checkout, no payment form and no card field, so
+  the page says exactly that rather than reciting compliance boilerplate. The
+  only input on the site takes five digits.
+- **Privacy** — no data sale and no cross-context behavioural advertising,
+  because neither happens. Collection is listed as what it is: a ZIP code,
+  server logs, a consent flag, and whatever is said on a call.
+- **Service Fulfillment** — draws the line between retailer and carrier, and
+  states plainly that billing comes from Arvig and not from us.
+- **Trademarks** — records that the header wordmark is the retailer's own mark
+  and not the Arvig corporate logo, which matters given it was type-set here.
+- **Disclaimer** — carries the independent-retailer statement, the
+  AutoPay/Paperless qualifier and the maximum-wired-speed caveat.
+
+### Two things left deliberately open
+
+**`legalLastReviewed` is an empty string**, so no date renders. The build
+carries a no-date-stamp rule, and a stale review date on a policy is worse than
+none. Setting it to e.g. `'March 2026'` makes it appear on all eight pages at
+once.
+
+**Four placeholders in `site`** — `legalEntity`, `legalAddress`, `legalEmail`
+and the existing phone number — are cited by every document's contact block. A
+policy naming no legal entity or contact route is unenforceable, so these must
+be filled before launch.
+
+These are drafts following industry structure, not legal advice, and need
+review by counsel.
+
+### Copyright
+
+`© ${new Date().getFullYear()} …` → `© ${site.retailerName} …`. Verified: no
+four-digit year appears anywhere in the footer.
+
+### Verification
+
+- All eight routes return **200**; an unknown slug returns **404**.
+- Build: 12 static pages, `/legal/[slug]` prerendered as SSG.
+- Footer lists all 8 with correct `/legal/...` hrefs; sidebar lists the other 7.
+- Legal pages at 320 / 390 / 768: no horizontal overflow, **0 gutter breaches**.
+- `tel:` links all carry `data-call-cta`.
+
+---
