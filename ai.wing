@@ -1001,3 +1001,59 @@ branch and remote are all in place; the push is one authenticated command away.
 `tsc --noEmit` clean; `next build` static at 14.3 kB / 116 kB.
 
 ---
+
+## [0023] Security patch — CVE-2025-66478 (React2Shell)
+
+Vercel's first deployment built successfully but emitted:
+
+```
+npm warn deprecated next@15.5.4: This version has a security vulnerability.
+Vulnerable version of Next.js detected, please update immediately.
+```
+
+### What it is
+
+**CVE-2025-66478, CVSS 10.0, remote code execution.** A flaw in the React
+Server Components protocol lets untrusted input influence server-side
+execution. It originates upstream in React as CVE-2025-55182 ("React2Shell");
+the Next.js advisory tracks the downstream impact on App Router apps.
+
+Affected: Next.js 15.x and 16.x using RSC with the App Router. Not affected:
+13.x, stable 14.x, Pages Router, Edge Runtime. **This project is squarely in
+the affected set** — 15.5.4, App Router, RSC.
+
+There is no workaround. Upgrading is the only fix.
+
+### Upgrade
+
+| Package | Was | Now | Patched from |
+| --- | --- | --- | --- |
+| `next` | 15.5.4 | **15.5.25** | 15.5.7 |
+| `react` | 19.1.1 | **19.1.9** | 19.1.2 |
+| `react-dom` | 19.1.1 | **19.1.9** | 19.1.2 |
+
+Upgrading Next alone is sufficient for App Router apps, since a patched React
+is bundled inside the release. But the project's own `react`/`react-dom` sat at
+19.1.1, one release below the 19.1.2 fix, so both were moved up as well rather
+than left on a known-vulnerable version. Stayed inside the 15.5 and 19.1 lines
+to keep the change surface small; caret ranges mean future patches in those
+lines are picked up.
+
+### Secret rotation — not required
+
+The advisory recommends rotating application secrets for anything that was
+online and unpatched. **This app has no environment variables and no secrets of
+any kind**, so there is nothing to rotate. The placeholder phone number is
+public by design.
+
+### Verification after upgrade
+
+- `tsc --noEmit` clean; `next build` static, 14.4 kB / 117 kB.
+- Dev server reports **Next.js 15.5.25**, all requests 200, no build errors.
+- Server-rendered HTML: **7 images**, all **9 section headings** present.
+- Live DOM: **19 `tel:` links, 0 missing `data-call-cta`**, 58 reveals armed,
+  Lenis active, headline highlight intact, no horizontal overflow.
+
+Pushed as `332cdc4`; local and `origin/main` in sync.
+
+---
