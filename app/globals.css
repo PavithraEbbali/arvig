@@ -1,0 +1,460 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   ARVIG BRAND TOKENS
+   Hex values sampled from the official stylesheet at https://arvig.com/
+   Core brand:  #1D1060 (deep indigo)  ·  #C0D52F (lime)  ·  #31CDCF (teal)
+   Neutrals:    #313131 (charcoal)     ·  #A0A0A0 (gray)  ·  #FFFFFF
+   ========================================================================== */
+
+@theme {
+  /* ------------------------------------------------------------------
+     OFFICIAL ARVIG COLORS — used verbatim.
+     Taken from arvig.com's own CSS declarations, not sampled by eye:
+       color: #1d1060            x26      background-color: #1d1060  x5
+       background-color: #c0d52f  x2      color: #a0a0a0             x3
+       #f8f8f8 (section tint)            #313131 (body charcoal)
+     ------------------------------------------------------------------ */
+  --color-arvig-indigo: #1d1060;
+  --color-arvig-lime: #c0d52f;
+  --color-arvig-gray: #a0a0a0;
+  --color-arvig-charcoal: #313131;
+  --color-arvig-offwhite: #f8f8f8;
+
+  /* ------------------------------------------------------------------
+     Functional steps. Every value below is a straight mix of the
+     official colors above with white or black — no new hues are
+     introduced, so the page carries Arvig's palette exactly.
+     ------------------------------------------------------------------ */
+
+  /* indigo: primary, dark surfaces, headings */
+  --color-arvig-950: #170d4f; /* #1d1060 + 18% black — footer */
+  --color-arvig-900: #1d1060; /* official */
+  --color-arvig-800: #1a0e56; /* #1d1060 + 10% black — hover */
+  --color-arvig-700: #1d1060; /* official */
+  --color-arvig-600: #1d1060; /* official */
+  --color-arvig-300: #a59fbf; /* 40% indigo on white */
+  --color-arvig-200: #cdcadc; /* 22% indigo on white */
+  --color-arvig-100: #e8e7ef; /* 10% indigo on white */
+  --color-arvig-50: #f4f3f7; /*  5% indigo on white */
+
+  /* lime: accent */
+  --color-lime-brand: #c0d52f; /* official */
+  --color-lime-bright: #ccdd59; /* #c0d52f + 20% white — hover */
+  --color-lime-deep: #a3b528; /* #c0d52f + 15% black */
+
+  /* neutrals, all from #313131 / #a0a0a0 / #f8f8f8 / #fff */
+  --color-ink: #313131; /* official */
+  --color-ink-soft: #5a5a5a; /* #313131 + 20% white */
+  --color-ink-mute: #6f6f6f; /* #a0a0a0 + 30% black, for AA contrast */
+  --color-line: #dedede; /* 35% #a0a0a0 on white */
+  --color-line-soft: #eeeeee; /* 18% #a0a0a0 on white */
+  --color-canvas: #ffffff;
+  --color-canvas-alt: #f8f8f8; /* official */
+
+  /* --- Type --- */
+  --font-sans:
+    'Inter var', 'Inter', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* --- Radii --- */
+  --radius-card: 16px;
+  --radius-pill: 999px;
+
+  /* --- Motion --- */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ==========================================================================
+   BASE
+   ========================================================================== */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  /* Lenis drives scrolling; disable native smooth when it is active. */
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+  html.lenis {
+    scroll-behavior: auto;
+  }
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Hard guarantee against horizontal overflow down to 320px. */
+    overflow-x: hidden;
+  }
+
+  /* Anchor targets clear the sticky header. */
+  section[id],
+  div[id] {
+    scroll-margin-top: 104px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+    letter-spacing: -0.021em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-arvig-700);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--color-lime-brand);
+    color: var(--color-arvig-900);
+  }
+}
+
+/* ==========================================================================
+   COMPONENT UTILITIES
+   ========================================================================== */
+
+@layer components {
+  .shell {
+    width: 100%;
+    max-width: 1220px;
+    margin-inline: auto;
+    padding-inline: 20px;
+  }
+
+  @media (min-width: 768px) {
+    .shell {
+      padding-inline: 32px;
+    }
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-arvig-600);
+  }
+
+  .eyebrow-on-dark {
+    color: var(--color-lime-brand);
+  }
+
+  /* --- Buttons --- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    border-radius: var(--radius-pill);
+    font-weight: 650;
+    font-size: 0.9375rem;
+    line-height: 1;
+    padding: 15px 26px;
+    white-space: nowrap;
+    transition:
+      background-color 0.2s var(--ease-out-soft),
+      color 0.2s var(--ease-out-soft),
+      border-color 0.2s var(--ease-out-soft),
+      transform 0.2s var(--ease-out-soft),
+      box-shadow 0.2s var(--ease-out-soft);
+  }
+
+  .btn:active {
+    transform: translateY(1px);
+  }
+
+  .btn-primary {
+    background-color: var(--color-arvig-700);
+    color: #fff;
+    box-shadow: 0 1px 2px rgb(16 7 52 / 0.24);
+  }
+  .btn-primary:hover {
+    background-color: var(--color-arvig-800);
+    box-shadow: 0 6px 18px -6px rgb(29 16 96 / 0.5);
+  }
+
+  .btn-accent {
+    background-color: var(--color-lime-brand);
+    color: var(--color-arvig-900);
+    box-shadow: 0 1px 2px rgb(16 7 52 / 0.16);
+  }
+  .btn-accent:hover {
+    background-color: var(--color-lime-bright);
+    box-shadow: 0 6px 18px -6px rgb(192 213 47 / 0.6);
+  }
+
+  .btn-outline {
+    background-color: transparent;
+    color: var(--color-arvig-700);
+    border: 1.5px solid var(--color-arvig-200);
+  }
+  .btn-outline:hover {
+    border-color: var(--color-arvig-700);
+    background-color: var(--color-arvig-50);
+  }
+
+  .btn-ghost-light {
+    background-color: rgb(255 255 255 / 0.08);
+    color: #fff;
+    border: 1.5px solid rgb(255 255 255 / 0.26);
+  }
+  .btn-ghost-light:hover {
+    background-color: rgb(255 255 255 / 0.15);
+    border-color: rgb(255 255 255 / 0.5);
+  }
+
+  .btn-sm {
+    padding: 11px 19px;
+    font-size: 0.875rem;
+  }
+
+  .btn-block {
+    width: 100%;
+  }
+
+  /* --- Cards --- */
+  .card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    transition:
+      border-color 0.25s var(--ease-out-soft),
+      box-shadow 0.25s var(--ease-out-soft),
+      transform 0.25s var(--ease-out-soft);
+  }
+
+  .card-hover:hover {
+    border-color: var(--color-arvig-300);
+    box-shadow: 0 18px 44px -24px rgb(29 16 96 / 0.35);
+    transform: translateY(-3px);
+  }
+
+  .card-popular {
+    border-color: var(--color-arvig-700);
+    box-shadow: 0 18px 44px -26px rgb(29 16 96 / 0.4);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border-radius: var(--radius-pill);
+    padding: 8px 15px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .rule {
+    height: 1px;
+    background-color: var(--color-line);
+    border: 0;
+  }
+}
+
+/* ==========================================================================
+   HERO MOTION
+   Slow and continuous rather than attention-seeking. All of it is disabled
+   under prefers-reduced-motion at the bottom of this file.
+   ========================================================================== */
+
+/* Ken Burns drift on the backdrop. Starts already scaled up so the translate
+   can never expose an edge. 34s is deliberately slow enough to read as depth
+   rather than as movement. */
+@keyframes hero-pan {
+  from {
+    transform: scale(1.06) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.15) translate3d(-1.4%, -1.1%, 0);
+  }
+}
+
+.hero-pan {
+  animation: hero-pan 34s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+/* Two light washes drifting across the scrim at different rates, so the sky
+   never looks like a static plate. */
+@keyframes hero-drift-a {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translate3d(-3%, 0, 0) scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: translate3d(4%, -2%, 0) scale(1.12);
+  }
+}
+
+@keyframes hero-drift-b {
+  0%,
+  100% {
+    opacity: 0.22;
+    transform: translate3d(2%, 1%, 0) scale(1.08);
+  }
+  50% {
+    opacity: 0.45;
+    transform: translate3d(-3%, -2%, 0) scale(1);
+  }
+}
+
+.hero-drift-a {
+  animation: hero-drift-a 19s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.hero-drift-b {
+  animation: hero-drift-b 26s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Light sweeping across the accented phrase in the headline. */
+@keyframes text-sheen {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: -200% 50%;
+  }
+}
+
+.text-sheen {
+  background-size: 200% auto;
+  animation: text-sheen 7s linear infinite;
+}
+
+/* One-shot entrance for the hero stack. Staggered by inline delay. */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hero-rise {
+  animation: hero-rise 0.85s var(--ease-out-soft) both;
+}
+
+/* --------------------------------------------------------------------------
+   MOBILE MOTION BUDGET
+
+   A 130-140px blur on an animated element is one of the most expensive things
+   a phone GPU can be asked to composite, and at this width the washes are
+   barely perceptible anyway. Below the `sm` breakpoint the drifts stop moving
+   and their blur radius is halved; the Ken Burns pan stays, since a composited
+   transform on a single layer is cheap and it is the effect that actually
+   reads at this size.
+   -------------------------------------------------------------------------- */
+@media (max-width: 639px) {
+  .hero-drift-a,
+  .hero-drift-b {
+    animation: none;
+    opacity: 0.4;
+    filter: blur(65px);
+    will-change: auto;
+  }
+
+  /* Shorter travel so the pan does not crop the house out of frame on a
+     narrow viewport. */
+  @keyframes hero-pan {
+    from {
+      transform: scale(1.04) translate3d(0, 0, 0);
+    }
+    to {
+      transform: scale(1.1) translate3d(-0.8%, -0.6%, 0);
+    }
+  }
+}
+
+/* ==========================================================================
+   ENTRANCE REVEALS — one-shot, subtle, opt-out under reduced motion
+
+   FAIL-SAFE BY DESIGN: `.reveal` is fully VISIBLE by default. The hidden
+   starting state only applies under `html[data-reveal='on']`, an attribute set
+   by a small inline script in app/layout.tsx that also removes itself if the
+   app never hydrates. So if JavaScript is disabled, a chunk fails to load, or
+   hydration throws, every section still renders — it simply does not animate.
+   Content must never depend on JS to be visible.
+   ========================================================================== */
+
+.reveal {
+  opacity: 1;
+  transform: none;
+}
+
+html[data-reveal='on'] .reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.65s var(--ease-out-soft),
+    transform 0.65s var(--ease-out-soft);
+  will-change: opacity, transform;
+}
+
+html[data-reveal='on'] .reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  html[data-reveal='on'] .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  /* Hero motion is decorative in full — stop it outright rather than
+     compressing it into a 1ms jump. */
+  .hero-pan,
+  .hero-drift-a,
+  .hero-drift-b,
+  .text-sheen,
+  .hero-rise {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

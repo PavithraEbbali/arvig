@@ -1,0 +1,1003 @@
+# ai.wing — Arvig Authorized Retailer · Change Log
+
+Append-only record of structural changes, feature additions and architectural
+decisions. Newest entry at the bottom. Each entry notes what changed, why, and
+how to revert.
+
+---
+
+## [0001] Initial build — project scaffold
+
+**Stack chosen**
+- Next.js 15.5 (App Router) + React 19 + TypeScript (strict)
+- Tailwind CSS v4 via `@tailwindcss/postcss` (CSS-first `@theme`, no JS config)
+- Lenis 1.3 for smooth scrolling
+- `next/font` (Inter) — self-hosted, no render-blocking font request
+
+**Why:** App Router gives static server components for everything except the
+three interactive islands (header, hero ZIP form, reveals), so the page ships
+almost no client JS. Tailwind v4's `@theme` block lets the brand palette live
+as CSS custom properties, which keeps the token list in one readable place.
+
+**Files:** `package.json`, `tsconfig.json`, `next.config.mjs`,
+`postcss.config.mjs`, `next-env.d.ts`, `.gitignore`
+
+**Revert:** delete the repo root; nothing else depends on it.
+
+---
+
+## [0002] Arvig brand palette extracted from source
+
+**Decision:** colors were sampled from the live stylesheet at https://arvig.com/
+rather than eyeballed from screenshots.
+
+| Token | Hex | Role |
+| --- | --- | --- |
+| `--color-arvig-700` | `#1D1060` | Official Arvig deep indigo — primary buttons, headings, dark sections |
+| `--color-lime-brand` | `#C0D52F` | Official Arvig lime — accents, badges, accent CTA |
+| `--color-teal-brand` | `#31CDCF` | Secondary accent from the same sheet |
+| `--color-ink` | `#313131` | Body charcoal |
+| `--color-ink-mute` | `#7A7A82` | Muted type, cents, fine print |
+| `--color-canvas-alt` | `#F7F7FB` | Alternating section tint |
+
+A 50–950 ramp was interpolated around `#1D1060` so hover, border and tint
+states stay on-brand. `#1D1060` and `#C0D52F` are used verbatim.
+
+**Files:** `app/globals.css`
+
+**Revert:** replace the `@theme` block; no component hard-codes a hex value.
+
+---
+
+## [0003] Centralized data architecture — `lib/content.ts`
+
+**Core requirement.** One file is the single source of truth for every price,
+speed, feature list, disclosure line and CTA label.
+
+- `PlanItem` interface implemented exactly as specified, plus five optional
+  presentation fields (`tagline`, `speedLabel`, `priceNote`, `priceUnit`,
+  `bestFor`) so cards stay expressive without layout files holding data.
+- `plans[]` holds all 14 plans across six service lines.
+- `serviceSections[]` declares the canonical order:
+  **fiber → cable → bundle → tv → mobile → phone**.
+- Derived selectors — `plansFor()`, `getPlan()`, `activeSections`,
+  `lowestPrice()`, `speedLabel()`, `finePrintRows()`, `ctaLabelFor()` — are the
+  only way layouts read data. No TSX file touches the `plans` array directly.
+- `activeSections` filters out any service line with zero plans, which makes an
+  empty placeholder section structurally impossible.
+
+**Cascade guarantee:** editing a `price` in this file updates the hero anchor,
+the plan card, the fine-print grid row and the CTA label simultaneously,
+because all four read the same `PlanItem`.
+
+**Files:** `lib/content.ts`
+
+**Revert:** this file is the only place plan data lives; restoring a prior copy
+fully restores prior pricing.
+
+---
+
+## [0004] Content sourced and fact-checked against arvig.com
+
+Every factual claim traces to an official Arvig page.
+
+**Internet (published rates, arvig.com/home-internet-minnesota/)**
+- Everyday Essentials — up to 300/30 Mbps — starting at $65.00
+- The Happy Medium — up to 500/50 Mbps — starting at $80.00
+- Full Speed Ahead — up to 1 Gbps/100 Mbps — starting at $95.00
+- Listed prices include $10/mo savings with AutoPay (ACH) + Paperless Billing;
+  pricing varies by location. Carried verbatim in `promoQualifier`.
+
+**Arvig Mobile (published rates, arvig.com/forhome/mobile/)**
+- Unlimited Max $40/mo · unlimited talk/text/data, HD video, 10 GB hotspot
+- Unlimited $30/mo · unlimited talk/text/data, SD video, 5 GB hotspot
+- By The Gig $15/mo · unlimited talk & text, 1 GB data, SD video
+- $20 activation per line; $3.30/mo cost recovery fee; all plans require active
+  Arvig internet service. Promo: up to 4 lines to $0 for a year via a $30/mo
+  credit for 12 months on one line per account.
+
+**Television** — Arvig WiFi TV (cloud DVR 10 hrs expandable to 200, Replay TV
+72-hour lookback, free HD, up to 7 simultaneous streams, Evo Force 1 / Fire TV
+/ Android TV / Apple / web) and the Broadband TV Value Plan (50+ channels;
+A&E, Hallmark, Outdoor Channel, C-SPAN, Sony Movies). Both require Arvig
+internet. Arvig publishes no rate for either → `priceNote`, CTA becomes
+"Call for pricing".
+
+**Home phone** — landline with unlimited local calling; Voicemail, Caller ID,
+Call Forwarding, Call Waiting, Phone to Go; optional long distance plans and
+toll-free numbers. No published rate → "Call for pricing".
+
+**Cable** — Arvig states it offers cable alongside fiber, describing it as a
+hard-wired alternative where fiber is still expanding. Speeds and rate are
+address-dependent → "Call for pricing".
+
+**Network facts used in copy** — largest independently owned provider in
+Minnesota; HQ in Perham, MN; roots to 1950; employee-owned; 9,000 sq-mile
+service area; 150+ communities; more than half of Minnesota's counties;
+unlimited data with no caps, throttling or peak-time slowdowns; 100%
+Satisfaction Guarantee; Managed WiFi with WiFi 6, ProtectIQ and ExperienceIQ.
+
+**Mobile was NOT omitted** — Arvig offers it natively with published pricing,
+so the section stays per the "omit only if not offered" rule.
+
+**Files:** `lib/content.ts`
+
+---
+
+## [0005] Universal `<PriceLockup plan={plan} />`
+
+One component renders every price on the site: a flex row of dollar sign,
+dominant integer (2.1rem / 2.75rem / 3.4rem by `size`), and muted cents, with
+the unit (`/mo`, `/mo per line`) pulled from the plan.
+
+- Used by the hero anchor (`size="lg" tone="dark"`), every plan card
+  (`size="md"`) and the fine-print grid's derived monthly string.
+- When `plan.price` is undefined it falls back to `plan.priceNote` instead of
+  rendering an empty lockup — the same condition that flips the CTA to
+  "Call for pricing".
+- Carries an `sr-only` sentence so screen readers hear one clean price rather
+  than the visually split integer and cents.
+
+**Files:** `components/PriceLockup.tsx`
+
+---
+
+## [0006] Component layer
+
+| Component | Role |
+| --- | --- |
+| `TopChrome` | Non-dismissable disclosure bar + sticky header, mobile nav |
+| `Wordmark` | Type-set Arvig wordmark with lime dot; no image request |
+| `Hero` | Headline, subline, price anchor, ZIP checker **and** call button, trust chips |
+| `PlanCard` | One card; CTA label derived by `ctaLabelFor()` |
+| `ServiceSection` | Renders any service line from a `ServiceSection` record |
+| `FinePrintGrid` | `<table>` from `md` up, stacked cards below |
+| `HowItWorks` | Three-step process + six-item "why order here" grid |
+| `Faq` | Native `<details>`/`<summary>` accordion, zero runtime JS |
+| `Footer` | Dark footer matching the bestfiberinternet.us structure |
+| `CallCta` | **The only** place a `tel:` link is built — guarantees `data-call-cta` |
+| `Reveal` | One-shot IntersectionObserver entrance |
+| `SmoothScroll` | Lenis setup + anchor interception with header offset |
+
+**Architectural note:** `CallCta` is deliberately the sole constructor of
+`tel:` hrefs. Every call-to-action therefore carries `data-call-cta="<surface>"`
+by construction rather than by convention, so the attribute cannot be dropped
+by a future edit.
+
+**Files:** `components/*.tsx`, `app/layout.tsx`, `app/page.tsx`
+
+---
+
+## [0007] Motion policy
+
+**Kept:** Lenis smooth scroll (duration 1.05, exponential ease), one-shot
+fade-and-lift reveals with a 40–80 ms stagger, card hover lift of 3 px, button
+hover/active states, accordion chevron rotation.
+
+**Deliberately excluded:** WebGL, 3D spiral hero backgrounds, animated assembly
+diagrams, parallax, scroll-jacked section pinning, looping animations.
+
+Lenis is skipped outright when `prefers-reduced-motion: reduce` is set, and
+`globals.css` neutralizes reveals and transitions under the same query.
+
+**Files:** `components/SmoothScroll.tsx`, `components/Reveal.tsx`,
+`app/globals.css`
+
+---
+
+## [0008] Negative-constraint compliance
+
+Enforced structurally where possible rather than by review:
+
+- **Support routing** — no copy anywhere directs customers to contact Arvig for
+  billing, outages or support. All CTAs route to the retailer sales line.
+- **Hero call button** — retained alongside the ZIP checker.
+- **CTA text** — `ctaLabelFor()` returns only "Call to order" or
+  "Call for pricing". The raw phone number appears as a label in exactly two
+  places, the header and the footer contact column.
+- **No competitor bashing / no self-deprecating copy** — the banned phrasings do
+  not appear; cable and fiber are described on their own merits.
+- **No empty sections** — `activeSections` filters zero-plan service lines out.
+- **No Broadband Facts label links** — none present.
+- **No date stamps** — no "Pricing observed …" string exists. (Note: the footer
+  reference site carries one; it was intentionally not reproduced.)
+- **No "is this the official site" FAQ** — the eight FAQ entries cover speeds,
+  data caps, installation, service requirements, bundling, Managed WiFi,
+  "starting at" pricing and number portability.
+- **Footer** — matches the reference structure: brand column + blurb, two link
+  columns, contact column with number and hours, full-width legal block,
+  bottom bar with policy links and copyright.
+
+---
+
+## [0009] Mobile overflow fix — hero grid tracks
+
+**Symptom:** at a 320px viewport the hero's `h1` and subline extended to x=317
+inside a container whose content box ended at x=300. No page-level horizontal
+scroll occurred, but the right gutter collapsed to 3px.
+
+**Cause:** grid items default to `min-width: auto`, so a child's min-content
+width forced the single grid track to 297.333px inside a 280px container.
+
+**Fix:** `min-w-0` on both hero grid children, plus `max-w-[min(16ch,100%)]`
+on the `h1` and a base size reduction from 2.125rem to 1.9375rem.
+
+**Files:** `components/Hero.tsx`
+
+**Revert:** remove `min-w-0` from the two grid children.
+
+---
+
+## [0010] Verification results
+
+Measured in-browser against the running build, not by inspection.
+
+**Cascade (core requirement) — PASS.** `fiber-everyday-essentials` was
+temporarily changed to `price: 71, cents: '49'` in `lib/content.ts` alone. All
+three surfaces updated with no TSX edit:
+- hero anchor → `Fiber internet starting at $ 71 .49 /mo`
+- fiber plan card → `$ 71 .49 /mo`
+- fine-print grid → `MONTHLY $71.49/mo`
+
+Reverted to `price: 65, cents: '00'` and re-verified.
+
+**Mobile at 320px — PASS.** `documentElement.scrollWidth === clientWidth === 320`,
+no horizontal scroll. A sweep of every text element and form control returned
+**0 gutter violations**. (Two oversized elements remain flagged by a naive
+bounding-box scan: the hero's decorative blur circles, which are absolutely
+positioned inside an `overflow-hidden` parent and are clipped, not scrollable.)
+
+**`data-call-cta` — PASS.** 20 `tel:` links on the page, **0 missing** the
+attribute. Guaranteed by construction: `CallCta` is the only component that
+builds a `tel:` href.
+
+**CTA labels — PASS.** 0 violations. Raw phone number appears as a button label
+only at `data-call-cta="header"` and `data-call-cta="footer"`. Every plan and
+section CTA reads "Call to order" (11) or "Call for pricing" (7), matching each
+plan's published-rate status.
+
+**Section order — PASS.** DOM offsets confirm the canonical order:
+fiber (1545) → cable (4087) → bundles (5221) → tv (7675) → mobile (9457) →
+phone (11766) → fine-print (13394) → how-it-works (16397) → why-us (17714) →
+faq (19574) → footer (20708).
+
+**Negative constraints — PASS.** Scans returned zero matches for date stamps,
+"Broadband Facts", "official site", "ordering channel, not the network
+operator", "rarely extend past county lines", and every support-routing phrase
+tested. `externalLinks` is an **empty array** — the page links out nowhere, so
+no Broadband Facts label link and no link to the carrier's own site can exist.
+
+**Hero — PASS.** ZIP input (`#zip`) and the call button
+(`data-call-cta="hero"`, label "Call to order") are both present.
+
+**Build — PASS.** `tsc --noEmit` clean. `next build` succeeds; the route is
+prerendered as static content at 7.97 kB / 110 kB First Load JS. Console is
+clean of application errors.
+
+---
+
+## [0011] Hero redesign — panel removed, ZIP-only conversion path
+
+**Request:** the hero's right-hand card read as a generic template. Referenced
+kineticfiber.us and bestfiberinternet.us.
+
+**What the references actually do:** both run a **single-column hero with no
+boxed panel**. bestfiberinternet.us stacks headline → paragraph → "See what's
+available at your address" → ZIP input + Check availability → microcopy.
+kineticfiber.us is headline → subheading → price callout → CTA, described as a
+"clean text-based design without boxed panels". The glassy card was the
+template tell, so it is gone.
+
+**Changes to `components/Hero.tsx`:**
+- Split two-column grid → one centered column, `max-w-[900px]`.
+- Removed the `rounded-[20px] border bg-white/[0.06]` panel entirely.
+- ZIP form rebuilt as a **fused search pill**: one white `rounded-full`
+  container with `p-1.5`, transparent input on the left, solid lime button
+  inset on the right, `0 20px 50px -22px` drop shadow and a 1px ring.
+  Below `sm` it unfuses into two stacked full-width controls, so the
+  320px layout keeps exact 20px gutters.
+- Focus handling follows the pill: `focus-within` ring on the container at
+  `sm`+, `focus-visible` ring on the bare input below that.
+- Background wash rebalanced to three centered blurs for a symmetric column.
+- H1 `max-w` raised to `21ch` at `sm`+ so "high-speed" stops breaking mid-word;
+  now sets in three balanced lines.
+- Price-anchor detail block drops its `border-l` and left padding and centres
+  once it wraps below the price (`sm:border-l sm:pl-6 sm:text-left`).
+
+**Hero call CTA removed — deliberate override of the earlier boss rule.**
+The original spec said "Do NOT remove the call button from the hero." When the
+conflict was raised the instruction was: *"remove the call to order button.
+include only zipcode and check availability button."* So the hero now carries
+**no phone CTA at all** — no button, no "Speak with a retail specialist" line,
+no number in the ZIP success message. The sticky header's call button sits
+directly above the hero and still holds the number on screen.
+
+To restore it, add a `<CallCta location="hero">` below the form and re-import
+`CallCta` in `components/Hero.tsx`.
+
+**Changes to `lib/content.ts`:**
+- `anchorLabel`: "Fiber internet starting at" → "Fiber plans start at".
+- Added `zipInvalid` and `zipSuccess` so the form's messages live in the data
+  file like everything else. `zipSuccess` no longer mentions the phone number.
+
+**Verification:** hero contains **0** `tel:` links, no phone number and no
+"call" string. Sitewide tel links 20 → 19, still **0 missing `data-call-cta`**.
+Pill measured fused at desktop (560px, centred, button inset, shadow applied)
+and `flex-direction: column` at 320px with both controls spanning 20→300.
+**0 gutter violations** page-wide at 320px; no horizontal scroll.
+`tsc --noEmit` clean; `next build` static at 7.93 kB / 110 kB.
+
+---
+
+## [0012] BUG: all sections below the hero rendered blank
+
+**Reported:** every section under the hero was invisible — white and grey
+bands where the plan cards, grid, FAQ and footer should be.
+
+### Root cause (two faults, one mine in process, one mine in design)
+
+**1. Dev server chunks 404'd.** `next build` was run twice against the same
+`.next` directory while `next dev` was live. The build replaced the chunks the
+running dev server was still serving, so `main-app.js` and
+`app-pages-internals.js` returned **404**. React never booted → no `useEffect`
+→ no IntersectionObserver, no Lenis → every `.reveal` sat at `opacity: 0`
+forever. Confirmed in the network log; `<html>` was also missing Lenis's class,
+and 55 of 55 reveals were hidden with 0 marked visible.
+
+**2. The reveal pattern was hidden-by-default.** `.reveal { opacity: 0 }` with
+JS as the only path to visibility. That is the real defect: *any* JS failure —
+chunk 404, runtime error, disabled JS, a crawler — blanks the entire page. A
+marketing page's content must never depend on JS to be visible.
+
+**This was visible earlier and got explained away.** During the initial build,
+screenshots of the fine-print, FAQ and footer came back blank and `is-visible`
+had to be forced via JS to capture them. That was the bug surfacing; it was
+dismissed as scroll timing.
+
+### Fixes
+
+**Fail-safe visibility contract (`app/globals.css`, `app/layout.tsx`)**
+- `.reveal` is now **visible by default**. The hidden start state applies only
+  under `html[data-reveal='on']`.
+- A small inline script in `<head>` sets that attribute before first paint (so
+  there is no flash), then removes it after **2500 ms** unless a mounted Reveal
+  has set `window.__revealReady`. Hydration fails → attribute drops → all
+  content visible, just unanimated.
+- `<html suppressHydrationWarning>` because the script mutates it pre-hydration.
+
+Verified on fresh nodes with no transition history:
+
+| State | Computed opacity |
+| --- | --- |
+| `data-reveal="on"` | `0` |
+| `data-reveal="on"` + `.is-visible` | `1` |
+| **no `data-reveal`** (JS never booted) | **`1`** |
+| previously armed, then disarmed | `1` |
+
+**Reveal driver rewritten (`components/Reveal.tsx`)**
+- 55 per-element IntersectionObservers → **one shared registry** with a single
+  pass that measures rects. Elements leave the registry once fired, and the
+  listeners detach when it empties.
+- Coalesced with `queueMicrotask`, not `requestAnimationFrame`: rAF only runs
+  while the page paints.
+- Listens to `scroll`, `resize` and `visibilitychange`.
+- **700 ms timer backstop** while anything is pending. Browsers suspend scroll
+  events, rAF and IntersectionObserver in a hidden or occluded tab; timers keep
+  running, so nothing can be stranded at opacity 0.
+
+**Process:** never run `next build` while `next dev` is running against the
+same `.next`. Stop the dev server, build, then restart.
+
+### Verification
+
+- All dev chunks (`main-app`, `app-pages-internals`, `app/page`, `app/layout`,
+  `webpack`) return **200**; previously 404.
+- Server-rendered HTML contains **all nine** section headings and **zero**
+  inline `opacity:0` — full content without JS, and for crawlers.
+- With scroll events, rAF and IntersectionObserver all suspended (hidden tab),
+  the timer backstop alone still marked **48 of 55** reveals visible.
+- `tsc --noEmit` clean; `next build` static at 8.15 kB / 110 kB.
+
+**Note on measuring this:** in a hidden tab, CSS transitions do not advance, so
+an element can carry `.is-visible` while `getComputedStyle().opacity` still
+reads `0`. Assert on the `is-visible` class, not computed opacity, when the
+pane is not painting — computed opacity there measures the browser's paint
+state, not the app's logic.
+
+---
+
+## [0013] Palette locked to Arvig's exact shades + professional copy pass
+
+### Colors
+
+Sampled from arvig.com's **own CSS declarations** (`curl` + grep over the
+served HTML), not from screenshots:
+
+| Hex | Evidence on arvig.com |
+| --- | --- |
+| `#1D1060` | `color:` x26, `background-color:` x5 — the primary |
+| `#C0D52F` | `background-color:` x2 — the button accent |
+| `#F8F8F8` | section tint |
+| `#A0A0A0` | `color:` x3 — muted text |
+| `#313131` | body charcoal |
+
+**Removed:** the interpolated purple-leaning indigo ramp (`#f5f4fb`, `#eae7f6`,
+`#d2ccec`, `#aea3dc`, `#8574c8`, `#5c47ad`, `#3d2a8c`) and the invented teal
+(`#31CDCF`, `#1B9799`). The teal appeared only in a WordPress preset block, not
+in any Arvig brand rule, so it was never an Arvig color.
+
+**Now:** every hex in `app/globals.css` is either an official color used
+verbatim or a straight mix of one with white or black. No new hues:
+
+- `#170D4F` = `#1D1060` + 18% black (footer)
+- `#1A0E56` = `#1D1060` + 10% black (button hover)
+- `#A59FBF` / `#CDCADC` / `#E8E7EF` / `#F4F3F7` = 40/22/10/5% `#1D1060` on white
+- `#CCDD59` = `#C0D52F` + 20% white · `#A3B528` = `#C0D52F` + 15% black
+- `#5A5A5A` = `#313131` + 20% white
+- `#6F6F6F` = `#A0A0A0` + 30% black — darkened only so small print clears
+  WCAG AA; `#A0A0A0` itself is 2.8:1 on white and fails for body text
+- `#DEDEDE` / `#EEEEEE` = 35/18% `#A0A0A0` on white (borders)
+
+Hero background washes changed from a teal blur to white and lime at low alpha,
+keeping the whole page inside Arvig's palette.
+
+Rendered values confirmed in-browser: hero `#1d1060`, primary button `#1d1060`,
+accent button `#c0d52f`, tinted section `#f8f8f8`, headings `#1d1060`.
+
+### Copy — professional pass on seven sections
+
+| Section | Before | After |
+| --- | --- | --- |
+| Cable | "Cable internet where fiber is still on the way" | "Cable internet across the Arvig service area" |
+| Bundles | "Put the household on one account" | "Bundled services on a single account" |
+| TV | "Arvig TV, delivered over your connection" | "Television delivered over your Arvig connection" |
+| Mobile | "Mobile lines that ride on your home account" | "Mobile service on your Arvig account" |
+| Phone | "A landline that still makes sense" | "Dependable home phone service" |
+| Fine print | "What each plan actually costs to run" | "Complete pricing and plan terms" |
+| Why us | "Straight answers before you sign up" | "What sets Arvig service apart" |
+
+Each section's intro paragraph was rewritten alongside its heading, replacing
+colloquial verbs ("rides on", "attach to it", "set out beside") with plain
+professional phrasing. No factual claim changed — speeds, rates, the Arvig
+internet requirement for TV and Mobile, and the unlimited-data policy are all
+as previously sourced.
+
+**Files:** `app/globals.css`, `components/Hero.tsx`, `lib/content.ts`
+
+---
+
+## [0014] Photography added — 7 images
+
+Images were supplied as **PNG, 1408x768, 28.9 MB total** (3.4-5.5 MB each).
+Two problems had to be fixed before they could ship.
+
+### 1. Weight — 28.9 MB to 0.92 MB
+
+Re-encoded to progressive mozjpeg at q82 via `sharp`. PNG originals moved to
+`assets-source/` at the project root, **outside `public/`**, so they are never
+served. That folder is ~30 MB; it is the only copy of the uncropped originals,
+so it was kept rather than deleted, but it should probably stay out of git.
+
+### 2. Gemini watermark — removed by crop
+
+Every image carried Gemini's visible four-pointed sparkle watermark in the
+bottom-right, located at **x 1265-1310, y 620-665** of 1408x768. On a page whose
+whole point is not looking AI-generated, that mark is the giveaway.
+
+Fixed by re-cutting from the PNG originals with `extract({width:1250})` — the
+right 11%, which starts before the watermark at x=1265. Final images are
+**1250x768**. Verified by compositing all seven bottom-right corners into one
+contact sheet: no mark on any of them.
+
+Final shipped weight: **884 KB across 7 files.**
+
+### Placement rule
+
+Imagery is data-driven. `SectionImage { src, alt, layout }` was added to
+`lib/content.ts`, and `ServiceSection.tsx` reads it — no layout file holds a
+file path.
+
+| Layout | Applies to | Rendering |
+| --- | --- | --- |
+| `side` | sections with <= 2 plans (cable, TV, phone) | image and cards share a row from `lg`, `0.82fr / 1.18fr` |
+| `banner` | sections with 3 plans (mobile) | full-width strip above the cards |
+| none | fiber, bundles | already three cards wide; images there would make the page image-soup |
+
+| Image | Placement |
+| --- | --- |
+| `hero-home-fiber.jpg` | Full-bleed hero backdrop, `priority` |
+| `install-technician.jpg` | How It Works — split; the 3-across step grid became image + stacked steps |
+| `why-us-local-team.jpg` | Why Us — wide band under the heading |
+| `cable-neighborhood.jpg` | Cable — side |
+| `tv-living-room.jpg` | TV — side |
+| `home-phone-kitchen.jpg` | Phone — side |
+| `mobile-everyday.jpg` | Mobile — banner |
+
+### Hero scrim
+
+First attempt stacked `bg-arvig-900/80` **and** a `/75 -> /70 -> /95` gradient.
+Those multiply: `1 - (0.2 x 0.3)` = **94% opaque**, which buried the photograph
+entirely — the farmhouse was invisible.
+
+Replaced with a single bottom-heavy gradient, `from-arvig-900/55 via/72
+to-arvig-900/92`. Bottom-heavy so the ZIP row and trust chips sit on the
+densest part. Worst case behind type is the lit windows (~235,185,125) under
+the 72% mid stop: composite `#4a3566`, white on it ~9.3:1 and lime ~6.5:1, both
+clear of AA.
+
+### Verification
+
+- 7 `<img>` in the server-rendered HTML; **6 `loading="lazy"`**, hero excluded
+  and carrying a `rel="preload"` (how Next 15 implements `priority`).
+- Correct `sizes` per placement; 8 srcset candidates each.
+- At **320px**: no horizontal scroll, **0 gutter violations**, every section
+  image measured exactly 280px wide inside the 20px gutters.
+- `tsc --noEmit` clean; `next build` static, 13.8 kB / 116 kB First Load JS.
+
+---
+
+## [0015] Image treatment revisions
+
+Five changes off the back of a review of the rendered page.
+
+### Hero scrim lightened again
+
+`from-arvig-900/55 via/72 to/92` was still too dense — the farmhouse read as a
+vague silhouette. Now **`/38 -> /55 -> /85`**. Contrast recomputed for the worst
+case, the lit windows (~235,185,125) under the 55% mid stop: composite
+`#7a5c6d`, white on it ≈ **5.9:1**, still clear of AA for normal text. The
+headline itself sits over the dusk sky, where contrast is far higher.
+
+### New `background` image layout — cable and home phone
+
+Added `layout: 'background'` to `SectionImage`. The photograph fills the whole
+section edge to edge with **no scrim at all**, as asked.
+
+Legibility is handled without dimming the picture: the eyebrow, heading and
+intro move onto an opaque white panel (`bg-white/97`), and the plan cards were
+already opaque white. So the image runs at full strength everywhere it is
+visible, and no text is ever set directly on photography.
+
+A `background` section also opts out of the alternating white / off-white
+rhythm, since it supplies its own surface.
+
+### Content held to the left on background sections
+
+First attempt spread the panel and cards across the full width, which hid the
+subject of both photographs behind the cards — the man on the phone was
+completely covered. Content is now capped at **`lg:max-w-[62%]`**, leaving the
+right of the frame clear. That is where the subject sits in both images.
+
+`objectPosition` was added to `SectionImage` for per-image crop control:
+- cable — `center 55%` (drops empty sky, keeps the street and pole)
+- phone — `68% center` (holds the man in frame)
+
+### Arvig Mobile banner — subject was decapitated
+
+The banner cropped the woman's head. At 945px wide the image scales to 580px
+tall; cropping 340px from centre removed 120px top, cutting into her hair at
+y≈60. Fixed with **`objectPosition: 'center 18%'`**, biasing the crop window
+upward so the top of the frame is preserved.
+
+### Why Us copy cut back
+
+Six two-to-three-sentence bodies reduced to one short line each, e.g.
+"Arvig operates a 9,000 square-mile network across more than half of
+Minnesota's counties, with high-capacity fiber routes through St. Cloud,
+Rochester and the Twin Cities." -> "A 9,000 square-mile network reaching more
+than half of Minnesota's counties." Titles and the six claims are unchanged.
+
+### Verification
+
+- At **320px**: no horizontal scroll, **0 gutter violations**; both background
+  sections measured 320px wide with their `objectPosition` applied.
+- `tsc --noEmit` clean; `next build` static.
+
+---
+
+## [0016] REVERTED: full-bleed background sections
+
+The `background` treatment on cable and home phone was rejected on sight, and
+correctly so. Both are back to `layout: 'side'`.
+
+### Why it failed — arithmetic, not taste
+
+The reviewer's viewport was ~1834px. The photography is **1250px** wide after
+the watermark crop. Edge to edge therefore meant:
+
+- **upscaling ~1.47x**, so the image went visibly soft — the blown-up utility
+  pole and wires were the giveaway;
+- a fixed-height section (~690px) cropping **~39% of the frame** away, which
+  destroyed the composition the prompts were written to produce.
+
+Compounding it, the header panel was `bg-white/97` with `backdrop-blur`, so a
+busy photograph bled through the copy and the text looked washed.
+
+**This was foreseeable.** The resolution ceiling was known at the point the
+layout was built — the watermark crop that produced 1250px is logged two
+entries above. It should have been raised before implementing, not discovered
+in review.
+
+### Current state
+
+| Section | Layout | Rendered | Scale vs 1250px source |
+| --- | --- | --- | --- |
+| cable | `side` | 458x400 | **0.37x** (downsampling) |
+| phone | `side` | 458x400 | **0.37x** (downsampling) |
+
+At 320px the largest image renders at 280px — **0.26x**. Nothing upscales
+anywhere on the page now.
+
+`objectPosition` was kept for crop control: cable `center 55%`, phone
+`72% center` (holds the man in frame within the narrower box).
+
+### The `background` layout was kept, not deleted
+
+It is a legitimate option and is now documented in `lib/content.ts` with its
+hard requirement: **a source of ~2400px or wider**. Its panel was also changed
+from `bg-white/97` + `backdrop-blur` to fully opaque `bg-white`. Regenerating
+cable and phone at 2400px+ would make the treatment viable; at 1250px it
+cannot be.
+
+### Verification
+
+- At **320px**: no horizontal scroll, **0 gutter violations**.
+- Max image scale factor across the page: **0.26x** at 320px, **0.37x** at
+  1400px. No upscaling.
+- `tsc --noEmit` clean; `next build` static.
+
+---
+
+## [0017] Full-bleed background sections, done correctly
+
+A reference screenshot settled it: cable and home phone are back on
+`layout: 'background'`, and the piece I had missing was the scrim.
+
+### What the earlier attempt got wrong
+
+Entry [0015] took "don't put any overlay" literally and ran the photograph
+undimmed, which forced two bad consequences: the copy had to move onto floating
+white panels, and the 1250px source's ~1.5x upscale had nothing hiding it, so
+it looked visibly blown up.
+
+The reference does the opposite — the photograph is **clearly darkened**, with
+centred white type directly on it. The scrim is doing two jobs at once: it
+carries the type, and it conceals the upscale. Remove it and both problems
+appear together, which is exactly what happened.
+
+So the resolution ceiling flagged in [0016] was real but not the blocker.
+1250px is fine edge to edge *under a scrim*; it is not fine bare.
+
+### Implementation
+
+- Section is `bg-arvig-900` with the image at `fill` / `object-cover`, then a
+  gradient scrim `from-arvig-900/70 via-arvig-900/78 to-arvig-900/88`.
+- New `headerOnDark`: lime eyebrow, centred white `h2`, centred `arvig-100`
+  intro, capped at `max-w-[760px]`.
+- Cards centre below the copy — `max-w-[520px]` for one plan, `max-w-[880px]`
+  for two. They are already opaque white, so they read as they do in the
+  reference.
+- Footnote, if present, centres in `arvig-200`.
+- `objectPosition`: cable `center 55%`, phone `62% center`.
+
+### Contrast
+
+Worst case is the cable shot's overcast sky (~200,200,204) under the 78% stop:
+composite `#3f3576`, white on it **≈10.6:1**. Even at the lightest 70% stop it
+is ≈8.6:1. Measured in-browser: heading `rgb(255,255,255)`, intro
+`rgb(232,231,239)`, cards `rgb(255,255,255)`, section base `rgb(29,16,96)` —
+the official Arvig indigo.
+
+### Verification
+
+- At **320px**: no horizontal scroll, **0 gutter violations**.
+- `tsc --noEmit` clean; `next build` static.
+
+---
+
+## [0018] Scrims reduced across hero, cable and home phone
+
+All three photographic scrims lightened. Levels were chosen by computing
+contrast at candidate values rather than by eye, against the brightest
+backdrop that actually sits behind text in each image.
+
+| Surface | Before | After |
+| --- | --- | --- |
+| Hero | `38 / 55 / 85` | **`28 / 50 / 78`** |
+| Cable + home phone | `70 / 78 / 88` | **`50 / 58 / 74`** |
+
+### Two text colours were forced by the measurements
+
+Lightening a scrim raises the luminance behind the type, so two existing
+choices stopped clearing AA and had to move. Both were passing before only
+because the scrims were dark.
+
+**Lime eyebrow on the background sections → white.** Against the cable shot's
+overcast sky (~200,200,204), lime `#C0D52F` measures:
+
+| scrim | 44% | 48% | 52% | 56% | 60% |
+| --- | --- | --- | --- | --- | --- |
+| lime | 2.56 | 2.83 | 3.12 | 3.46 | 3.84 |
+
+It fails at every level under 66%, so it could not survive the reduction. White
+at the 50% top stop gives ~4.8:1. The reference screenshot uses a muted
+non-accent eyebrow too, so this also matches it more closely.
+
+**Hero subline `arvig-200` → `arvig-100`.** Over the sunset strip
+(~215,175,140), `arvig-200` measures 3.04–3.93:1 across the candidate range —
+failing everywhere. `arvig-100` reaches 4.57:1 at the 50% mid stop, which set
+the floor for that stop.
+
+### Resulting margins
+
+- Hero, 50% mid over sunset: white **5.6:1**, arvig-100 **4.6:1**.
+- Background sections, 58% mid over overcast sky: white **5.9:1**,
+  arvig-100 **4.8:1**.
+
+Going lighter than these values drops the intro paragraphs below AA, so this is
+the floor for the current photography.
+
+### Verification
+
+Rendered scrims confirmed in-browser at `0.28/0.5/0.78` and `0.5/0.58/0.74`;
+hero subline and section intros `rgb(232,231,239)`, section eyebrows
+`rgb(255,255,255)`. At **320px**: no horizontal scroll, **0 gutter violations**.
+`tsc --noEmit` clean; `next build` static.
+
+---
+
+## [0019] Hero emphasis, Why Us on photography, hero scrim reduced again
+
+### Headline highlight
+
+`headlineHighlight: 'high-speed internet'` added to `hero` in
+`lib/content.ts`, and the Hero splits the headline around it and wraps that
+span in the Arvig lime. Kept as data so the emphasis travels with the copy
+instead of being hard-coded in JSX; if the phrase is ever edited out of the
+headline the split falls back to rendering it plain.
+
+Confirmed rendering as `rgb(192, 213, 47)` — the official `#C0D52F`.
+
+### Plan lockup promoted
+
+The hero price anchor now sits in its own container: `rounded-[18px]`, a
+`border-lime-brand/45` outline, `bg-arvig-950/45`, a soft drop shadow and a
+light backdrop blur. It reads as a distinct offer rather than loose text.
+
+### Why Us moved onto the photograph
+
+`why-us-local-team.jpg` was a boxed banner between the heading and the cards;
+it is now the section's full-bleed background, matching cable and home phone.
+Same scrim levels (`50 / 58 / 74`), centred white eyebrow and heading.
+
+The six claim cards changed from opaque white to
+`bg-arvig-950/62` + `border-white/14` + a light blur. Two reasons: six opaque
+white cards would have covered the photograph almost entirely, and a
+self-darkening card holds its contrast wherever the picture happens to be
+bright. Measured over the brightest part of that shot: white **11.6:1**,
+arvig-100 body **9.4:1**.
+
+### Hero scrim — past the previous floor, via a pool
+
+Entry [0018] recorded `28 / 50 / 78` as the floor, because lightening the flat
+gradient any further dropped the subline below AA. That was true of a *flat*
+gradient. Concentrating the density where the text actually sits lifts the
+ceiling:
+
+- flat gradient reduced to **`16 / 30 / 66`**
+- plus a radial pool, `radial-gradient(74% 62% at 50% 44%, …0.44 → …0.18 →
+  transparent)`
+
+| | Before | Now |
+| --- | --- | --- |
+| Photograph edges | 50% | **30%** |
+| Composite behind the type | 50% | **60.8%** |
+
+So the picture runs considerably brighter while contrast behind the copy
+actually improved. Over the sunset strip, the worst backdrop: white
+**7.2:1**, arvig-100 **5.9:1**, lime highlight **4.4:1** — and the highlight
+is 3.5rem, which is large text needing only 3:1.
+
+### Verification
+
+At **320px**: no horizontal scroll, **0 gutter violations**; the new plan
+container spans 20–300, exactly inside the gutters. `tsc --noEmit` clean;
+`next build` static.
+
+---
+
+## [0020] Hero motion + gradient headline, scrim reduced again
+
+Note this deliberately goes past the original brief's "minimal, refined
+animations only" constraint, at the user's request. Everything added is slow
+and continuous rather than attention-seeking, and no WebGL, 3D or assembly
+animation was introduced — those negative constraints still hold.
+
+### Gradient headline
+
+The accented phrase now renders as a gradient
+(`from-lime-brand via-white to-lime-brand`) clipped to the text, with a 7s
+linear sheen sweeping through it via `background-position`.
+
+Wrapped in an outer `<span className="text-lime-brand">` so the phrase still
+reads as solid lime if `background-clip: text` is unsupported — a transparent
+text fill with no clip support would otherwise render invisible.
+
+### Background motion
+
+| Animation | Duration | Notes |
+| --- | --- | --- |
+| `hero-pan` | 34s, alternate | Ken Burns on the backdrop. Starts at `scale(1.06)` so the translate can never expose an edge |
+| `hero-drift-a` | 19s | White wash, upper left |
+| `hero-drift-b` | 26s | Lime wash, upper right |
+| `text-sheen` | 7s | Sheen through the headline gradient |
+| `hero-rise` | 0.85s, once | Staggered entrance: 0 / 90 / 180 / 280 / 380 / 470 ms |
+
+**The washes had to be cut back sharply.** At the first attempt
+(`bg-white/10`, `bg-lime-brand/10`, 55% and 50% wide, peaking at 0.8 and 0.6
+opacity) the hero looked *worse* — a wash sits on top of the photograph, so it
+lifts the blacks and flattens the picture into haze rather than brightening
+it. Reduced to `bg-white/6` and `bg-lime-brand/7`, 38% and 34% wide, peaking at
+0.55 and 0.45, and confined to the upper corners away from the house.
+
+### Scrim reduced again
+
+| | Before | Now |
+| --- | --- | --- |
+| Flat gradient | `16 / 30 / 66` | **`12 / 24 / 58`** |
+| Radial pool | 0.44 → 0.18 | **0.48 → 0.20** |
+| Photograph edges | 30% | **24%** |
+| Composite behind type | 60.8% | **60.5%** |
+
+Deepening the pool while lightening the flat layer keeps the contrast behind
+the copy effectively unchanged while opening the picture up further. Over the
+sunset strip: white **7.2:1**, arvig-100 **5.9:1**, lime **4.4:1** (3.5rem, so
+large text needing 3:1).
+
+### Reduced motion
+
+All five animations are switched off outright under
+`prefers-reduced-motion: reduce` rather than compressed to 1ms, since they are
+purely decorative. Confirmed present in the served stylesheet.
+
+### Verification note
+
+All five keyframes and the reduced-motion block were confirmed in the served
+CSS, and every animation reports the correct name, duration, iteration count
+and `playState: "running"`.
+
+**The motion itself could not be watched.** The preview pane is not producing
+frames — `document.hidden` reads false, but the document timeline is frozen
+(`currentTime` static at 11344ms across a 1200ms wait). Non-zero timeline
+values and a mid-sweep `background-position` of -124% show the animations did
+run while the pane was painting. They should be eyeballed in a real browser.
+
+### Verification
+
+At **320px**: no horizontal scroll, **0 gutter violations**, h1 spanning
+20–300. `tsc --noEmit` clean; `next build` static.
+
+---
+
+## [0021] Why Us refined — split instead of overlay
+
+The full-bleed treatment from [0019] did not work for this section and was
+replaced.
+
+### Why the overlay failed here
+
+The cable and home phone photographs are wide, quiet scenes — a street, a
+kitchen — so copy can sit over them. `why-us-local-team.jpg` is the opposite:
+two people, mid-frame, in high-visibility vests. Laying a six-card grid across
+it produced two problems at once. The subjects were buried behind the cards,
+and the card copy sat over faces and vests, which no amount of scrim or card
+opacity fixes. The two elements were competing for the same region of the
+frame.
+
+It is worth naming the general rule: a photograph works as a backdrop when its
+subject is *not* where the content goes. Six cards occupy the whole width, so
+only a photograph with no central subject can survive underneath them.
+
+### What replaced it
+
+A split. The picture gets its own slab, the copy gets a solid surface, and
+neither sits on the other.
+
+- `lg:grid-cols-[42%_58%]` — photograph left, claims right.
+- The image carries only a light `bg-arvig-900/20` tint now, since no text
+  sits on it. It reads as a photograph again rather than as texture.
+- A gradient blend on the join (right edge at `lg`, bottom edge below that) so
+  the two halves meet softly instead of at a hard seam.
+- **Card chrome dropped entirely.** On solid indigo the claims need no panels:
+  a 3px lime rule, the title, the body, and spacing do the separating. Six
+  bordered translucent boxes were most of what made the old version look busy.
+- Eyebrow returns to lime — on solid `#1D1060` it measures 9.9:1, so the
+  contrast problem that forced it white over photography does not apply.
+
+### Measurements
+
+| | Value |
+| --- | --- |
+| Grid at 1385px | 581.5px photo / 803.1px content |
+| Claim columns | 2 (left edges 646, 1003) |
+| Section height | 695px, down from a much taller stack |
+| Text contrast | white 16:1, arvig-100 13:1 on solid `#1D1060` |
+
+At **320px** the grid collapses to one column: photograph 320x260 on top,
+claims below, no horizontal scroll and **0 gutter violations**.
+
+`tsc --noEmit` clean; `next build` static.
+
+---
+
+## [0022] Mobile responsiveness pass, repo, Vercel readiness
+
+### Audit method
+
+Rather than resizing the pane nine times, the page was loaded into same-origin
+iframes at nine widths (320, 360, 390, 414, 480, 640, 768, 1024, 1280) and
+measured from the parent document — overflow, gutter breaches, touch-target
+heights and computed font sizes, all in a few calls.
+
+**Horizontal overflow: none at any of the nine widths**, before or after the
+changes. That part was already sound.
+
+### Real defects found and fixed
+
+**iOS Safari zoom on focus.** The ZIP input rendered at **15px**. Safari zooms
+the entire page whenever a focused input is under 16px, which on a phone throws
+the layout off and strands the user mid-page. Now `text-[1rem]` with
+`sm:text-[0.9375rem]`, so it is 16px exactly where it matters. Confirmed
+`16px` at 320 and 390.
+
+**Touch targets.** 20–23 controls measured under 40px, several under WCAG
+2.5.8's 24px floor: footer links at **17px**, desktop nav links at 23px, the
+mobile Call button at 38px. Fixed with `inline-block py-1.5` on footer links,
+`py-1` on nav links and `!py-[13px]` on the mobile Call button. Now
+**0 targets under 24px** at every width.
+
+**11px type.** 55 instances of `text-[0.6875rem]`, mostly uppercase labels, in
+the fine-print grid, footer headings and the "Most popular" badge. Raised to
+12px on phones and left at 11px from `sm` up where the viewing distance suits
+it.
+
+**Mobile motion budget.** Two animated elements carried `blur(130px)` and
+`blur(140px)` — among the most expensive things a phone GPU composites, and
+barely perceptible at that width. Below `sm` the drifts stop animating and
+their blur halves to 65px. The Ken Burns pan stays (a composited transform on
+one layer is cheap) but its travel shortens so it cannot crop the house out of
+a narrow frame. Verified: `animation-name: none`, `filter: blur(65px)` at
+320px.
+
+**Hero height.** 1292px at 320px, roughly two screens before any plan. Mobile
+padding and inter-element margins tightened; now 1226px at 320 and 1097px at
+390.
+
+### Repository
+
+`git init`, branch `main`, one commit, remote
+`https://github.com/PavithraEbbali/arvig.git`.
+
+- `.gitignore` excludes `assets-source/` — the 30 MB of uncropped PNG masters.
+  The shipped 884 KB of optimised JPEGs in `public/images` **are** committed.
+- `.gitattributes` normalises to LF, since Vercel builds on Linux.
+- A stray `arvig.html` (the Arvig homepage, downloaded during colour
+  extraction) was caught during staging and removed.
+- 35 files committed.
+
+### Vercel
+
+No configuration needed — the framework is auto-detected and the defaults are
+correct. No environment variables. `next/image` optimisation works natively on
+Vercel, so the photography is served as WebP/AVIF per breakpoint.
+
+### Push not completed
+
+`gh` is not installed and Git Credential Manager holds no stored GitHub
+credential, so `git push` fails with `could not read Username`. Entering a
+token or password is not something to do on the user's behalf. The commit,
+branch and remote are all in place; the push is one authenticated command away.
+
+`tsc --noEmit` clean; `next build` static at 14.3 kB / 116 kB.
+
+---
