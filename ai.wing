@@ -1143,3 +1143,68 @@ four-digit year appears anywhere in the footer.
 - `tel:` links all carry `data-call-cta`.
 
 ---
+
+## [0025] Footer rebuilt to the bestfiberinternet.us pattern
+
+Read the reference footer directly rather than working from a summary. Its
+structure, sampled live:
+
+- surface `#001226`, body text `#9FB3C8` — near-black, muted
+- four columns: brand + blurb, SHOP, LEARN, **TALK TO A HUMAN**
+- that last column leads with the phone number at ~21.6px / weight 800, white,
+  then hours, then a mailing address
+- a labelled **OFFER DETAILS & REQUIRED DISCLOSURES** block of several
+  paragraphs, each opening with the offer it qualifies
+- an affiliate statement: compensation may be received when service is bought
+  through the site or phone line
+- a policy link row
+- a named compliance route — person, phone, email, mailing address
+- a copyright line carrying trademark attribution for the carrier's marks
+
+### What was added here
+
+| Element | Before | Now |
+| --- | --- | --- |
+| Surface | `#170D4F` | **`#130A3E`** (`#1D1060` + 35% black) |
+| Contact heading | "Contact" | **"Talk to a human"** |
+| Phone | 1.375rem | **1.5rem / weight 800**, with mailing address below |
+| Disclosures | two generic lines | **labelled block, 5 paragraphs** |
+| Affiliate disclosure | absent | **present** |
+| Compliance route | absent | **named, with phone, email, address** |
+| Trademark attribution | absent | **present in the copyright line** |
+
+Disclosure paragraphs are keyed to what actually changes the price: the
+AutoPay + Paperless condition on internet rates, maximum-wired-speed caveat,
+the Arvig Mobile internet requirement with its $20 activation and $3.30/mo cost
+recovery fee and the terms of the $30/mo credit, and the fact that TV, phone,
+cable and bundle rates are quoted by address rather than published.
+
+The surface stays inside the Arvig palette — `#130A3E` is the official
+`#1D1060` mixed with black, not the reference's navy `#001226`.
+
+### Two things from the reference deliberately not copied
+
+**"Pricing current as of <date> · Last reviewed: <date>."** The build carries a
+no-date-stamp rule, and an accuracy date nobody updates is worse than none.
+
+**"Manage cookies."** This site has no cookie banner to reopen, so the link
+would do nothing. A control that does not work is worse than its absence; the
+Cookies Policy explains browser-level control instead.
+
+### Copyright
+
+Briefly read "Arvig Authorized Retailer — independent authorized retailer",
+which is redundant. Restored to `© Arvig Authorized Retailer. All rights
+reserved.` — still no year.
+
+### Verification
+
+- Surface `#130a3e`; headings Shop / Learn / Talk to a human / Offer details &
+  required disclosures; phone 24px weight 800.
+- 5 disclosure paragraphs, 3 labelled; 8 policy links; compliance and trademark
+  lines present; **no four-digit year anywhere**.
+- At 320 / 390 / 768: no page overflow, **0 footer gutter breaches, 0 footer
+  links under 24px**.
+- `tsc --noEmit` clean; build 12 static pages.
+
+---

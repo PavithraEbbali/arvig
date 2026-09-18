@@ -6,16 +6,20 @@ import Wordmark from './Wordmark';
 
 /**
  * Dark footer laid out like the reference: a wide brand column with the
- * wordmark and blurb, two link columns, a contact column carrying the sales
- * line and hours, then a full-width legal block and a bottom bar with the
- * policy links and copyright.
+ * wordmark and blurb, two link columns, a contact column leading with the
+ * phone number, then a labelled required-disclosures block, the policy link
+ * row, a named compliance route and the copyright with trademark attribution.
+ *
+ * The reference carries a "Pricing current as of <date>" line above its
+ * disclosures. That is deliberately not reproduced -- this build carries a
+ * no-date-stamp rule, and an accuracy date nobody updates is worse than none.
  */
 export default function Footer() {
   return (
     <footer id="legal" className="bg-arvig-950 text-white">
       <div className="shell py-16 sm:py-20">
         {/* ---------------- Columns ---------------- */}
-        <div className="grid grid-cols-1 gap-11 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1.25fr] lg:gap-10">
+        <div className="grid grid-cols-1 gap-11 sm:grid-cols-2 lg:grid-cols-[1.7fr_1fr_1fr_1.3fr] lg:gap-10">
           {/* Brand */}
           <div>
             <Wordmark tone="dark" showSuffix={false} />
@@ -30,10 +34,10 @@ export default function Footer() {
           {/* Link columns */}
           {footer.columns.map((column) => (
             <nav key={column.title} aria-label={column.title}>
-              <h3 className="text-[0.75rem] font-bold uppercase tracking-[0.13em] text-white sm:text-[0.6875rem]">
+              <h2 className="text-[0.75rem] font-bold uppercase tracking-[0.13em] text-white sm:text-[0.6875rem]">
                 {column.title}
-              </h3>
-              <ul className="mt-5 flex flex-col gap-3">
+              </h2>
+              <ul className="mt-5 flex flex-col gap-2">
                 {column.links.map((link) => (
                   <li key={link.label}>
                     <a
@@ -48,15 +52,15 @@ export default function Footer() {
             </nav>
           ))}
 
-          {/* Contact — the second of two places the raw number is the label. */}
+          {/* Contact -- the second of two places the raw number is the label. */}
           <div>
-            <h3 className="text-[0.6875rem] font-bold uppercase tracking-[0.13em] text-white">
+            <h2 className="text-[0.75rem] font-bold uppercase tracking-[0.13em] text-white sm:text-[0.6875rem]">
               {footer.contact.title}
-            </h3>
+            </h2>
 
             <CallCta
               location="footer"
-              className="mt-5 block text-[1.375rem] font-extrabold tracking-[-0.02em] text-white transition-colors hover:text-lime-brand"
+              className="mt-5 block text-[1.5rem] font-extrabold tracking-[-0.02em] text-white transition-colors hover:text-lime-brand"
             >
               {site.phoneDisplay}
             </CallCta>
@@ -67,28 +71,47 @@ export default function Footer() {
             <p className="mt-1 text-[0.8125rem] text-arvig-300">
               {footer.contact.note}
             </p>
+            <p className="mt-3 text-[0.8125rem] leading-[1.6] text-arvig-300">
+              {site.legalAddress}
+            </p>
           </div>
         </div>
 
-        {/* ---------------- Legal block ---------------- */}
-        <div className="mt-14 border-t border-white/10 pt-9">
-          <div className="flex max-w-[110ch] flex-col gap-3.5">
-            {footer.legalLines.map((line) => (
+        {/* ---------------- Required disclosures ---------------- */}
+        <section
+          aria-labelledby="footer-disclosures"
+          className="mt-14 border-t border-white/10 pt-9"
+        >
+          <h2
+            id="footer-disclosures"
+            className="text-[0.75rem] font-bold uppercase tracking-[0.13em] text-arvig-200 sm:text-[0.6875rem]"
+          >
+            {footer.disclosuresTitle}
+          </h2>
+
+          <div className="mt-5 flex max-w-[110ch] flex-col gap-3.5">
+            {footer.disclosures.map((item) => (
               <p
-                key={line.slice(0, 40)}
+                key={item.body.slice(0, 44)}
                 className="text-[0.75rem] leading-[1.75] text-arvig-300"
               >
-                {line}
+                {item.label ? (
+                  <span className="font-bold uppercase tracking-[0.06em] text-arvig-200">
+                    {item.label}:{' '}
+                  </span>
+                ) : null}
+                {item.body}
               </p>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* ---------------- Bottom bar ---------------- */}
-        <div className="mt-9 flex flex-col gap-5 border-t border-white/10 pt-7 lg:flex-row lg:items-center lg:justify-between">
-          <ul className="flex flex-wrap gap-x-6 gap-y-2.5">
-            {/* Derived from lib/legal.ts, so adding a policy document lists
-                it here without a second edit. */}
+        {/* ---------------- Policy links ---------------- */}
+        <nav
+          aria-label="Legal policies"
+          className="mt-9 border-t border-white/10 pt-7"
+        >
+          <ul className="flex flex-wrap gap-x-6 gap-y-1">
             {legalLinks.map((link) => (
               <li key={link.label}>
                 <Link
@@ -100,8 +123,16 @@ export default function Footer() {
               </li>
             ))}
           </ul>
+        </nav>
 
-          <p className="text-[0.75rem] text-arvig-300">{footer.copyright}</p>
+        {/* ---------------- Compliance + copyright ---------------- */}
+        <div className="mt-7 flex flex-col gap-3 border-t border-white/10 pt-7">
+          <p className="max-w-[110ch] text-[0.75rem] leading-[1.7] text-arvig-300">
+            {footer.complianceLine}
+          </p>
+          <p className="max-w-[110ch] text-[0.75rem] leading-[1.7] text-arvig-300">
+            {footer.copyright} {footer.trademarkLine}
+          </p>
         </div>
       </div>
     </footer>

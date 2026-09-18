@@ -773,19 +773,50 @@ export const footer = {
       ],
     },
   ],
-  /** Contact column — the one place a raw number is allowed alongside the nav. */
+
+  /** Contact column — one of only two places a raw number is the label. */
   contact: {
-    title: 'Contact',
+    title: 'Talk to a human',
     hours: 'Mon–Fri 8AM–9PM CT · Sat–Sun 9AM–6PM CT',
     note: 'Sales and new orders',
   },
-  legalLines: [
-    site.disclosureLong,
-    'Speeds quoted are maximum wired speeds. Actual throughput depends on your equipment, wiring and in-home network. Taxes, surcharges and fees are additional. Arvig Mobile plans require active Arvig internet service.',
+
+  /* ---------------------------------------------------------------------
+     Required disclosures. Each paragraph states a condition that materially
+     affects what a customer actually pays, so they sit in the footer of every
+     page rather than only beside the plan that triggers them.
+
+     Note: no "pricing current as of <date>" line. The build carries a
+     no-date-stamp rule, and a stale accuracy date is worse than none.
+     --------------------------------------------------------------------- */
+  disclosuresTitle: 'Offer details & required disclosures',
+  disclosures: [
+    {
+      label: '',
+      body: `This site is operated by ${site.legalEntity} as an independent authorized retailer of Arvig. It is not operated by Arvig. Orders placed through this site or by telephone are fulfilled by Arvig; pricing, promotions and availability are set by Arvig, vary by service address, and are confirmed at the time of order. We may be compensated by Arvig when you purchase services through this site or our phone line.`,
+    },
+    {
+      label: 'Internet',
+      body: 'Rates shown are Arvig published residential rates and include a $10/mo saving that requires enrolment in both AutoPay (ACH) and Paperless Billing; without both enrolments the rate is higher. Pricing varies by location and is subject to change. Speeds quoted are maximum wired speeds — actual throughput varies with your equipment, in-home wiring, Wi-Fi conditions and network conditions, and is not guaranteed. Taxes, surcharges, activation and equipment charges are additional. Not available in all areas.',
+    },
+    {
+      label: 'Arvig Mobile',
+      body: 'All Arvig Mobile plans require an active Arvig internet service. A $20 activation fee per line and a $3.30/mo cost recovery fee apply. The $30/mo credit for 12 months applies to one line per account on the Unlimited plan with qualifying Arvig internet service, based on Arvig service area; some restrictions apply. Devices are not included.',
+    },
+    {
+      label: 'Television & home phone',
+      body: 'Arvig WiFi TV and the Broadband TV Value Plan require an active Arvig internet service. Channel lineups vary by market. Rates for television, home phone, cable internet and bundles are set by service address and quoted at the time of order rather than published here.',
+    },
+    {
+      label: '',
+      body: 'Final pricing, equipment charges, taxes and fees are confirmed by Arvig at the time of order based on your service address. Once service is established, billing, account management and technical support are provided by Arvig under its own terms.',
+    },
   ],
-  /**
-   * Populated from lib/legal.ts by the Footer, so a new policy document
-   * appears here automatically rather than needing to be listed twice.
-   */
+
+  /** Named compliance route, as required of a retail channel. */
+  complianceLine: `For compliance enquiries or complaints regarding ${site.legalEntity}, contact us at ${site.phoneDisplay} or ${site.legalEmail}. Mailing address: ${site.legalAddress}.`,
+
   copyright: `© ${site.retailerName}. All rights reserved.`,
+  trademarkLine:
+    'ARVIG and related marks are trademarks of Arvig or its affiliates, used under authorization. All other trademarks are the property of their respective owners.',
 };
